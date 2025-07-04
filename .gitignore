@@ -11,3 +11,6 @@ wheels/
 *.csv
 # Virtual environments
 .venv
+*.png
+*.jpeg
+*.JPG
