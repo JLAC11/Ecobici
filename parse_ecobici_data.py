@@ -9,9 +9,9 @@ from scipy.spatial import distance
 from collections import defaultdict
 import networkx as nx
 
+plt.style.use("styles/ecobici.mplstyle")
 
-sns.set_style("darkgrid")
-
+# %%
 df = pd.read_csv(
     "data/historic/ecobici_2025-05.csv",
     dtype={
@@ -32,7 +32,9 @@ df.rename(
     inplace=True,
 )
 stations = pd.DataFrame(json.load(open("data/station_info.json"))["data"]["stations"])
-
+stations.sort_values(by="capacity", ascending=False).head(20)[
+    ["name", "capacity"]
+].to_markdown("generated/assets/top_20_stations.md", index=False, tablefmt="github")
 stationsnames = stations[["name", "short_name"]]
 
 df["origen"] = df["origen"].map(stationsnames.set_index("short_name")["name"])
@@ -112,6 +114,34 @@ values.head(20).to_markdown(
     intfmt=",",
     floatfmt=",",
 )
+plt.style.use("styles/ecobici.mplstyle")
+sns.ecdfplot(values, x="Bici", log_scale=(False, False), stat="percent")
+plt.title("Cumulative distribution of bike routes")
+plt.xlabel("Number of bikes used in the route")
+plt.ylabel("Cumulative distribution (%)")
+plt.xlim(-2, 200)
+plt.ylim(0, 105)
+plt.hlines(100, -2, 1000, linestyles="dashed", colors="#53231a", alpha=0.5)
+plt.gcf().set_size_inches(12, 8)
+plt.savefig("generated/assets/travelpairs-distribution.png")
+# plt.tight_layout()
+
+# %%
+durationfilter = df["duration_mins"] <= df["duration_mins"].quantile(0.995)
+
+sns.kdeplot(
+    df[durationfilter],
+    x="duration_mins",
+    fill=True,
+    common_norm=False,
+)
+plt.title("Duration of bike trips")
+plt.xlabel("Duration (minutes)")
+plt.ylabel("Density")
+plt.vlines(45, 0, 1, linestyles="dashed", colors="#53231a", alpha=0.5)
+plt.ylim(0, 0.065)
+plt.tight_layout()
+plt.savefig("generated/assets/travel_duration_distribution.png")
 
 # %%
 matr = df.pivot_table(index="origen", columns="destino", values="Bici", aggfunc="count")
@@ -125,7 +155,8 @@ submat = matr.loc[(matr.sum(axis=1)) > k, (matr.sum(axis=0)) > k]
 eigvals, eigvecs = np.linalg.eig(matr)
 print(f"Eigenvalue importance: {eigvecs[0]}")
 
-sns.heatmap(submat, cbar=True, cmap="Blues", annot=False)
+fig = sns.heatmap(submat, cbar=True, cmap="Blues", annot=False)
+plt.savefig("generated/assets/heatmap_routes.png")
 
 # %%
 sns.histplot(df, x="Edad_Usuario", binwidth=2, hue="Genero_Usuario")
