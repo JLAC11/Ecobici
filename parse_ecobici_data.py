@@ -77,6 +77,7 @@ sns.barplot(data=w, x="hora", y=("Bici", "count"), hue=("duration_mins", "mean")
 plt.title("Bikes used by hour")
 plt.xlabel("Hour of the day")
 plt.ylabel("Number of bikes used in the month")
+plt.legend(title="Average duration (minutes)")
 plt.gcf().set_size_inches(12, 6)
 plt.tight_layout()
 plt.savefig("generated/assets/usage_by_hour.png")
@@ -96,6 +97,20 @@ ax = sns.heatmap(
 
 ax.set_xlabel("Day of the week")
 ax.set_ylabel("Hour of the day")
+ax.set_title("Bikes used by weekday and hour")
+ax.set_xticklabels(
+    ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    rotation=45,
+)
+ax.set_yticklabels(
+    [f"{i}:00" for i in range(24)],
+    rotation=0,
+)
+plt.gcf().set_size_inches(12, 6)
+plt.xticks(rotation=45)
+plt.yticks(rotation=0)
+plt.xlabel("Day of the week")
+plt.ylabel("Hour of the day")
 
 plt.tight_layout()
 plt.savefig("generated/assets/usage_by_weekday_hour.png")
