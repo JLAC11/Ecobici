@@ -143,6 +143,28 @@ plt.ylim(0, 0.065)
 plt.tight_layout()
 plt.savefig("generated/assets/travel_duration_distribution.png")
 
+# %% Check trips by day-half
+
+midday = df["momento_retiro"].dt.hour < 12
+
+df.groupby([midday, df["origen"]])["Bici"].count().sort_values(ascending=False).head(
+    20
+).to_markdown(
+    "generated/assets/top_20_origin_stations_by_halfday.md",
+    index=True,
+    tablefmt="github",
+)
+
+midday = df["momento_arribo"].dt.hour < 12
+
+df.groupby([midday, df["destino"]])["Bici"].count().sort_values(ascending=False).head(
+    20
+).to_markdown(
+    "generated/assets/top_20_destination_stations_by_halfday.md",
+    index=True,
+    tablefmt="github",
+)
+
 # %%
 matr = df.pivot_table(index="origen", columns="destino", values="Bici", aggfunc="count")
 matr = matr.dropna(axis=0, how="all")
