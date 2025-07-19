@@ -31,18 +31,19 @@ df.rename(
     columns={"Ciclo_EstacionArribo": "destino", "Ciclo_Estacion_Retiro": "origen"},
     inplace=True,
 )
+# %%
 stations = pd.DataFrame(json.load(open("data/station_info.json"))["data"]["stations"])
 stations.sort_values(by="capacity", ascending=False).head(20)[
     ["name", "capacity"]
 ].to_markdown("generated/assets/top_20_stations.md", index=False, tablefmt="github")
 stationsnames = stations[["name", "short_name"]]
-
+# %%
 df["origen"] = df["origen"].map(stationsnames.set_index("short_name")["name"])
 df["destino"] = df["destino"].map(stationsnames.set_index("short_name")["name"])
 df["duration_mins"] = df["duration"].dt.total_seconds() / 60
 durationfilter = df["duration"] <= df["duration"].quantile(0.995)
 print(df.head())
-
+# %%
 df.groupby("origen")["Bici"].count().sort_values(ascending=False).head(20).to_markdown(
     "data/top_20_stations_origins.md"
 )
@@ -102,17 +103,13 @@ ax.set_xticklabels(
     ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
     rotation=45,
 )
-ax.set_yticklabels(
-    [f"{i}:00" for i in range(24)],
-    rotation=0,
-)
 plt.gcf().set_size_inches(12, 6)
 plt.xticks(rotation=45)
 plt.yticks(rotation=0)
 plt.xlabel("Day of the week")
 plt.ylabel("Hour of the day")
 
-plt.tight_layout()
+# plt.tight_layout()
 plt.savefig("generated/assets/usage_by_weekday_hour.png")
 # %% Routes
 values = (
@@ -227,13 +224,13 @@ df.groupby("origen").agg({"duration": ["mean", "min", "max", "median", quantile_
 ].reset_index().sort_values(by="mean", ascending=False)
 # %%
 # Generate a stochastic block model graph
-graph = nx.from_pandas_adjacency(matr)
+graph = nx.from_pandas_adjacency(matr, create_using=nx.DiGraph)
 
 # Analyze the graph (e.g., using community detection algorithms)
-communities = list(nx.community.label_propagation_communities(graph))
+# communities = list(nx.community.label_propagation_communities(graph))
 
 # Print the communities
-print("Communities:", communities)
+# print("Communities:", communities)
 # %%
 
 
@@ -282,5 +279,73 @@ for n in BM:
 plt.subplot(212)
 nx.draw(BM, posBM, node_size=node_size, width=0.1, with_labels=True)
 plt.axis("off")
+plt.show()
+# %%
+
+import geoplot as gplt
+import geopandas as gpd
+import contextily as ctx
+
+stations = pd.DataFrame(json.load(open("data/station_info.json"))["data"]["stations"])
+stations.sort_values(by="capacity", ascending=False).head(20)[
+    ["name", "capacity"]
+].to_markdown("generated/assets/top_20_stations.md", index=False, tablefmt="github")
+stationsnames = stations[["name", "short_name"]]
+
+centralities = pd.DataFrame(
+    {
+        "Closeness": nx.closeness_centrality(G),
+        "Betweenness": nx.betweenness_centrality(G),
+        # "Communicability Betweenness": nx.communicability_betweenness_centrality(G),
+        "Eigenvector": nx.eigenvector_centrality_numpy(G),
+        "Harmonic": nx.harmonic_centrality(G),
+        "In-Degree": nx.in_degree_centrality(G),
+        "Out-Degree": nx.out_degree_centrality(G),
+        "Katz Centrality": nx.katz_centrality_numpy(G, alpha=0.001),
+    }
+)
+vars = centralities.columns
+stations = centralities.reset_index().merge(stations, left_on="index", right_on="name")
+
+# %%
+fig, axes = plt.subplots(2, int(np.ceil(len(vars) / 2)), figsize=(20, 5))
+
+for i, var in enumerate(vars):
+    ax = axes[i % 2, i // 2]
+    example = gpd.GeoDataFrame(
+        stations,
+        geometry=gpd.points_from_xy(
+            stations["lon"].astype(float), stations["lat"].astype(float)
+        ),
+    )
+    gplt.webmap(
+        example,
+        extent=(-99.25, 19.3, -99.1, 19.5),
+        projection=gplt.crs.WebMercator(),
+        # ax=ax,  # provider=ctx.providers["Stamen"]
+    )
+    gplt.kdeplot(
+        example,
+        fill=True,
+        # markersize=10,
+        # edgecolor="black",
+        linewidth=0.5,
+        alpha=0.1,
+        ax=ax,
+        thresh=0.5,
+    )
+    gplt.pointplot(
+        example,
+        # markersize=10,
+        linewidth=0.5,
+        alpha=0.4,
+        ax=ax,
+        hue="Katz Centrality",
+    )
+    ax.set_title(f"{var} Centrality")
+    ax.set_xlabel("Longitude")
+    ax.set_ylabel("Latitude")
+    ax.grid(True)
+
 plt.show()
 # %%
