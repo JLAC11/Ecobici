@@ -231,7 +231,6 @@ graph = nx.from_pandas_adjacency(matr, create_using=nx.DiGraph)
 
 # Print the communities
 # print("Communities:", communities)
-# %%
 
 
 def create_hc(G):
@@ -254,25 +253,26 @@ def create_hc(G):
 
 
 G = graph
+"""
 # Extract largest connected component into graph H
-H = G.subgraph(next(nx.connected_components(G)))
+#H = G.subgraph(next(nx.connected_components(G)))
 # Makes life easier to have consecutively labeled integer nodes
-H = nx.convert_node_labels_to_integers(H)
+#H = nx.convert_node_labels_to_integers(H)
 # Create partitions with hierarchical clustering
-partitions = create_hc(H)
+#partitions = create_hc(H)
 # Build blockmodel graph
-BM = nx.quotient_graph(H, partitions, relabel=True)
+#BM = nx.quotient_graph(H, partitions, relabel=True)
 
 # Draw original graph
-pos = nx.spring_layout(H, iterations=100, seed=83)  # Seed for reproducibility
-plt.subplot(211)
-nx.draw(H, pos, with_labels=False, node_size=10)
+#pos = nx.spring_layout(H, iterations=100, seed=83)  # Seed for reproducibility
+#plt.subplot(211)
+#nx.draw(H, pos, with_labels=False, node_size=10)
 
 # Draw block model with weighted edges and nodes sized by number of internal nodes
-node_size = [BM.nodes[x]["nnodes"] * 10 for x in BM.nodes()]
-edge_width = [(2 * d["weight"]) for (u, v, d) in BM.edges(data=True)]
+#node_size = [BM.nodes[x]["nnodes"] * 10 for x in BM.nodes()]
+#edge_width = [(2 * d["weight"]) for (u, v, d) in BM.edges(data=True)]
 # Set positions to mean of positions of internal nodes from original graph
-posBM = {}
+#posBM = {}
 for n in BM:
     xy = np.array([pos[u] for u in BM.nodes[n]["graph"]])
     posBM[n] = xy.mean(axis=0)
@@ -280,11 +280,12 @@ plt.subplot(212)
 nx.draw(BM, posBM, node_size=node_size, width=0.1, with_labels=True)
 plt.axis("off")
 plt.show()
+"""
 # %%
 
 import geoplot as gplt
 import geopandas as gpd
-import contextily as ctx
+import contextily as cx
 
 stations = pd.DataFrame(json.load(open("data/station_info.json"))["data"]["stations"])
 stations.sort_values(by="capacity", ascending=False).head(20)[
@@ -301,29 +302,28 @@ centralities = pd.DataFrame(
         "Harmonic": nx.harmonic_centrality(G),
         "In-Degree": nx.in_degree_centrality(G),
         "Out-Degree": nx.out_degree_centrality(G),
-        "Katz Centrality": nx.katz_centrality_numpy(G, alpha=0.001),
+        "Katz": nx.katz_centrality_numpy(G, alpha=0.001),
     }
 )
 vars = centralities.columns
 stations = centralities.reset_index().merge(stations, left_on="index", right_on="name")
 
 # %%
-fig, axes = plt.subplots(2, int(np.ceil(len(vars) / 2)), figsize=(20, 5))
+
+
+fig, axes = plt.subplots(2, int(np.ceil(len(vars) / 2)), figsize=(30, 15))
 
 for i, var in enumerate(vars):
     ax = axes[i % 2, i // 2]
+
     example = gpd.GeoDataFrame(
         stations,
         geometry=gpd.points_from_xy(
             stations["lon"].astype(float), stations["lat"].astype(float)
         ),
+        crs="EPSG:4326",
     )
-    gplt.webmap(
-        example,
-        extent=(-99.25, 19.3, -99.1, 19.5),
-        projection=gplt.crs.WebMercator(),
-        # ax=ax,  # provider=ctx.providers["Stamen"]
-    )
+    """
     gplt.kdeplot(
         example,
         fill=True,
@@ -333,19 +333,37 @@ for i, var in enumerate(vars):
         alpha=0.1,
         ax=ax,
         thresh=0.5,
+        
     )
+    """
     gplt.pointplot(
         example,
         # markersize=10,
         linewidth=0.5,
-        alpha=0.4,
+        alpha=0.6,
         ax=ax,
-        hue="Katz Centrality",
+        hue=var,
+        cmap="Blues",
+        legend=True,
+    )
+    cx.add_basemap(
+        ax,
+        crs=example.crs,
+        attribution="",
+        source=cx.providers.CartoDB.Positron,
+        # attribution="Map tiles by Stamen Design, under CC BY 3.0. Data by OpenStreetMap, under ODbL.",
+        # extent=(-99.25, 19.3, -99.1, 19.5),
     )
     ax.set_title(f"{var} Centrality")
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
     ax.grid(True)
-
-plt.show()
+axes[-1, -1].axis("off")  # Hide the last empty subplot
+plt.tight_layout()
+plt.savefig("generated/assets/centralities_map.png")
+plt.suptitle(
+    "Centralities of Ecobici stations in Mexico City",
+    fontsize=16,
+    y=1.02,
+)
 # %%
